@@ -5,13 +5,15 @@ import java.awt.*;
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
  
 public class WebCrawler extends JFrame {
  
     final String TITLE_OF_PROGRAM = "Simple Window";
     final int START_LOCATION = 200;
-    final int WINDOW_WIDTH = 450;
-    final int WINDOW_HEIGHT = 450;
+    final int WINDOW_WIDTH = 500;
+    final int WINDOW_HEIGHT = 500;
     final String LINE_SEPARATOR = System.getProperty("line.separator");
     String siteText;
  
@@ -42,12 +44,16 @@ public class WebCrawler extends JFrame {
  
     //Верхняя область с полем имени файла и кнопкой Get text!
     private JPanel upArea() {
+ 
         //Создадим панель с менеджером размещений
         JPanel upArea = new JPanel();
         upArea.setLayout(new FlowLayout(FlowLayout.CENTER));
         // Создадим поле для ввода URL
         urlTextField = new JTextField(30);
         urlTextField.setName("UrlTextField");
+        // Создадим поле для вывода TITLE
+        JLabel titleLabel = new JLabel("Title");
+        titleLabel.setName("TitleLabel");
         //Кнопка RUN
         JButton runButton = new JButton("Get text!");
         runButton.setName("RunButton");
@@ -72,11 +78,19 @@ public class WebCrawler extends JFrame {
  
             // Что прочитали выводим в наше текстовоео поле.
             textArea.setText(siteText);
+ 
+            // Ищем есть ли что между тегами title и если есть - помещаем в нужную область
+            Pattern pattern = Pattern.compile("(<title>)(.*?)(</title>)");
+            Matcher matcher = pattern.matcher(siteText);
+            if (matcher.find()) {
+                titleLabel.setText(matcher.group(2));
+            }
         });
  
         // Собираем панель из поля ввода имени и 2х кнопок
         upArea.add(urlTextField);
         upArea.add(runButton);
+        upArea.add(titleLabel);
  
         return upArea;
     }
