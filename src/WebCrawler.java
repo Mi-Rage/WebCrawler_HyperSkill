@@ -40,6 +40,7 @@ public class WebCrawler extends JFrame {
         // Собираем все панели
         container.add(upArea(), BorderLayout.NORTH);
         container.add(scrollPane, BorderLayout.CENTER);
+        container.add(downArea(), BorderLayout.SOUTH);
 
         setVisible(true);
     }
@@ -84,9 +85,44 @@ public class WebCrawler extends JFrame {
         return upArea;
     }
 
+    private JPanel downArea() {
+        JPanel downArea = new JPanel();
+        downArea.setLayout(new FlowLayout(FlowLayout.CENTER));
+        JLabel exportLabel = new JLabel("Export: ");
+        JTextField exportUrlText = new JTextField(30);
+        exportUrlText.setName("ExportUrlTextField");
+        //Кнопка SAVE
+        JButton exportButton = new JButton("SAVE");
+        exportButton.setName("ExportButton");
+        exportButton.addActionListener(actionEvent -> {
+            //Получили имя сохраняемого файла из текстового поля
+            String exportUrl = exportUrlText.getText();
+            File file = new File(exportUrl);
+            try  (PrintWriter printWriter = new PrintWriter(file)) {
+
+                for (int i = 0; i < model.getRowCount(); i++) {
+                    for (int j = 0; j < model.getColumnCount(); j++) {
+                        printWriter.println(model.getValueAt(i, j));
+                    }
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        });
+
+        // Собираем нижнюю панель
+        downArea.add(exportLabel);
+        downArea.add(exportUrlText);
+        downArea.add(exportButton);
+
+        return downArea;
+    }
+
     public String getMainTitle(String url) {
         try {
             URLConnection connection = new URL(url).openConnection();
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:63.0) Gecko/20100101 Firefox/63.0");
             if (!connection.getContentType().contains("text/html")) {
                 throw new RuntimeException("NOT TEXT");
             }
