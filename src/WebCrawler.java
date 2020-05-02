@@ -1,98 +1,135 @@
 package crawler;
- 
+
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.*;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
- 
+
+
 public class WebCrawler extends JFrame {
- 
-    final String TITLE_OF_PROGRAM = "Simple Window";
+
+    final String TITLE_OF_PROGRAM = "Web Crawler";
     final int START_LOCATION = 200;
-    final int WINDOW_WIDTH = 500;
-    final int WINDOW_HEIGHT = 500;
-    final String LINE_SEPARATOR = System.getProperty("line.separator");
-    String siteText;
- 
-    private final JTextArea textArea;
-    private JTextField urlTextField;
- 
+    final int WINDOW_WIDTH = 600;
+    final int WINDOW_HEIGHT = 400;
+
+    DefaultTableModel model;
+
     public WebCrawler() {
- 
+
         setTitle(TITLE_OF_PROGRAM);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setBounds(START_LOCATION, START_LOCATION, WINDOW_WIDTH, WINDOW_HEIGHT);
- 
+
         Container container = getContentPane();
- 
-        // Создаем область с текстом
-        textArea = new JTextArea("HTML code?");
-        textArea.setName("HtmlTextArea");
-        textArea.setEnabled(false);
-        textArea.setLineWrap(true);
-        JScrollPane scrollableTextArea = new JScrollPane(textArea);
- 
-        // Добавляем области во фрейм
-        container.add(scrollableTextArea, BorderLayout.CENTER);
+
+
+        // Создаем область с таблицей
+        model = new DefaultTableModel(0, 2);
+        model.setColumnIdentifiers(new String[]{"URL", "Title"});
+        final JTable tableArea = new JTable(model);
+        tableArea.setName("TitlesTable");
+        tableArea.setEnabled(false);
+        final JScrollPane scrollPane = new JScrollPane(tableArea);
+
+        // Собираем все панели
         container.add(upArea(), BorderLayout.NORTH);
+        container.add(scrollPane, BorderLayout.CENTER);
+
         setVisible(true);
-        textArea.append(siteText);
     }
- 
+
     //Верхняя область с полем имени файла и кнопкой Get text!
     private JPanel upArea() {
- 
+
         //Создадим панель с менеджером размещений
         JPanel upArea = new JPanel();
         upArea.setLayout(new FlowLayout(FlowLayout.CENTER));
+        JLabel urlLabel = new JLabel("URL: ");
         // Создадим поле для ввода URL
-        urlTextField = new JTextField(30);
+        JTextField urlTextField = new JTextField(30);
         urlTextField.setName("UrlTextField");
         // Создадим поле для вывода TITLE
-        JLabel titleLabel = new JLabel("Title");
+        JLabel tLabel = new JLabel("Title: ");
+        JLabel titleLabel = new JLabel();
         titleLabel.setName("TitleLabel");
         //Кнопка RUN
-        JButton runButton = new JButton("Get text!");
+        JButton runButton = new JButton("Parse");
         runButton.setName("RunButton");
         runButton.addActionListener(actionEvent -> {
             //Получили URL из текстового поля
             String url = urlTextField.getText();
- 
-            //Пробуем создать поток и читать из него пока есть что
-            try (InputStream inputStream = new URL(url).openStream()) {
-                final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
-                final StringBuilder stringBuilder = new StringBuilder();
- 
-                String nextLine;
-                while ((nextLine = reader.readLine()) != null) {
-                    stringBuilder.append(nextLine);
-                    stringBuilder.append(LINE_SEPARATOR);
-                }
-                siteText = stringBuilder.toString();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
- 
-            // Что прочитали выводим в наше текстовоео поле.
-            textArea.setText(siteText);
- 
-            // Ищем есть ли что между тегами title и если есть - помещаем в нужную область
-            Pattern pattern = Pattern.compile("(<title>)(.*?)(</title>)");
-            Matcher matcher = pattern.matcher(siteText);
-            if (matcher.find()) {
-                titleLabel.setText(matcher.group(2));
-            }
+            // Установим название в поле вывода
+            String title = getMainTitle(url);
+            titleLabel.setText(title);
+
+            model.setRowCount(0);
+            model.addRow(new Object[]{url, title});
+            getLinkAndTitle(url);
+
         });
- 
-        // Собираем панель из поля ввода имени и 2х кнопок
+
+        // Собираем верхнюю панель
+        upArea.add(urlLabel);
         upArea.add(urlTextField);
         upArea.add(runButton);
+        upArea.add(tLabel);
         upArea.add(titleLabel);
- 
+
         return upArea;
     }
- 
+
+    public String getMainTitle(String url) {
+        try {
+            URLConnection connection = new URL(url).openConnection();
+            if (!connection.getContentType().contains("text/html")) {
+                throw new RuntimeException("NOT TEXT");
+            }
+            InputStream inputStream = connection.getInputStream();
+            final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+            String nextLine;
+            while ((nextLine = reader.readLine()) != null) {
+                Pattern pattern = Pattern.compile("(<title>)(.*)(</title>)");
+                Matcher matcher = pattern.matcher(nextLine);
+                if (matcher.find()) {
+                    inputStream.close();
+                    return matcher.group(2);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
+    public void getLinkAndTitle(String url) {
+        String link;
+        String title;
+
+        try {
+            URLConnection connection = new URL(url).openConnection();
+            InputStream inputStream = connection.getInputStream();
+            final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+            String nextLine;
+            while ((nextLine = reader.readLine()) != null) {
+                Matcher matcherLink = Pattern.compile("(?<=href=[\"']).*(?=[\"']>)").matcher(nextLine);
+                if (matcherLink.find()) {
+                    StringBuilder linkBuilder = new StringBuilder(matcherLink.group());
+                    link = LinkUtilities.makeAbsoluteLink(linkBuilder, url);
+                    title = getMainTitle(link);
+                    if (!title.equals("")) {
+                        model.addRow(new Object[]{link, title});
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
+
